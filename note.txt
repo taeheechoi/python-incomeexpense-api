@@ -1068,6 +1068,58 @@ class RegisterView(generics.GenericAPIView):
     -> merge pull request
     -> confirm merge
 
+Video 17. Configuring CORS Policy. 
+https://youtu.be/q3HQyAObaac
+
+- git checkout -b ch-prepare-deploy
+- git pull --rebase origin master
+- pip install django-cors-headers
+
+- settings.
+...
+INSTALLED_APPS = [
+    ...
+    'corsheaders',
+]
+...
+MIDDLEWARE = [
+    ...,
+    'corsheaders.middleware.CorsMiddleware',
+    ...
+]
+
+CORS_ALLOW_ALL_ORIGINS=True
 
 
- 
+18. Deploying To Heroku. 
+https://youtu.be/r1zUSJwyd8U
+
+- pip install django-heroku 
+
+- settings.py
+...
+import django_heroku
+...
+django_heroku.settings(locals())
+
+- pip install gunicorn
+
+- pip freeze > requirements.txt
+
+- Create a file 'Procfile' on root
+
+- Procfile
+release: python manage.py makemigrations --no-input
+release: python manage.py mirgrate --no-input
+
+web: gunicorn incomeexpenseapi.wsgi
+
+- heroku login
+
+- heroku create expenseincomeapi
+Creating ⬢ expenseincomeapi... done
+
+- settings.py
+# change SECRET_KEY = os.getenv('DJANGO_SECRET_KEY') heroku can use it
+
+- git push heroku master
