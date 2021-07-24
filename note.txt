@@ -983,3 +983,39 @@ OK
 
 Video 16 CI/CD Continous Integration with CircleCI. 
 https://youtu.be/jzir3eYCCw4
+
+
+- git init
+- git add .
+- git commit -m "initial commit"
+- git remote add origin https://github.com/az-09/python-incomeexpense-api.git
+- git push -u origin main
+
+- sign into https://circleci.com/
+- projects 
+    -> python-incomeexpense-api 
+    -> set up project 
+    -> Write your own using our starter config.yml template
+    -> config.yml
+        version: 2.1
+
+        orbs:
+        python: circleci/python@1.2
+
+        workflows:
+            main: 
+                jobs:
+                - build-and-test
+        jobs:
+            build-and-test: 
+                docker:
+                - image: cimg/python:3.8
+                steps:
+                - checkout
+                - python/install-packages:
+                    pkg-manager: pip 
+                - run:
+                    name: Run tests
+                    command: ./manage.py test
+
+ 
