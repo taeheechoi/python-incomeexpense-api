@@ -1122,4 +1122,4 @@ Creating ⬢ expenseincometestapi... done
 - settings.py
 # change SECRET_KEY = os.getenv('DJANGO_SECRET_KEY') heroku can use it
 
-- git push heroku HEAD:master  
+- git push heroku master  
