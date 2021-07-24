@@ -1,0 +1,985 @@
+Training from Django rest framework project tutorial by Cryce Truly on Youtube
+
+Video 1. Project Introduction and Django setup.
+https://youtu.be/rJWAGQ0JxxI
+
+- venv\Scripts\activate
+- pip install django djangorestframework
+- django-admin startproject incomeexpenseapi
+- python manage.py startapp authentication
+
+Video 2. Creating a Django Custom user model.
+https://www.youtube.com/watch?v=SP5je7d3MFA&t=0s
+
+- models.py
+
+from django.db import models
+
+# Create your models here.
+from django.contrib.auth.models import (
+    AbstractBaseUser, BaseUserManager, PermissionsMixin)
+
+
+class UserManager(BaseUserManager):
+    def create_user(self, username, email, password=None):
+        if username is None:
+            raise TypeError('Users should have a username')
+        if email is None:
+            raise TypeError('Users should have an email')
+        if password is None:
+            raise TypeError('Password should hot be none')
+
+        user = self.model(username=username, email=self.normalize_email(email))
+        user.set_password(password)
+        user.save()
+        return user
+
+    def create_superuser(self, username, email, password=None):
+        # if password is None:
+        #     raise TypeError('Password should hot be none')
+
+        user = self.create_user(username, email, password)
+        user.is_superuser = True
+        user.is_staff = True
+        user.save()
+        return user
+
+class User(AbstractBaseUser, PermissionsMixin):
+    username = models.CharField(max_length=255, unique=True, db_index=True)
+    email = models.EmailField(max_length=255, unique=True, db_index=True)
+    is_verified = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
+    is_staff = models.BooleanField(default=False)
+    created_at=models.DateTimeField(auto_now_add=True)
+    updated_at=models.DateTimeField(auto_now=True)
+
+    USERNAME_FIELD='email'
+    REQUIRED_FIELDS=['username']
+
+    objects=UserManager()
+
+    def __str__(self):
+        return self.email
+
+    def tokens(self):
+        return ''
+
+- settings.py
+
+AUTH_USER_MODEL='authentication.User' # app_name.model_name
+
+INSTALLED_APPS = [
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+    'rest_framework',
+    'authentication',
+]
+
+
+Video 3. User Email Registration. 
+https://www.youtube.com/watch?v=u0qpTOmXvvs&t=0s
+
+- serializer.py
+from rest_framework import fields, serializers
+from .models import User
+
+
+class RegisterSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(
+        max_length=68, min_length=6, write_only=True)
+
+    class Meta:
+        model = User
+        fields = ['email', 'username', 'password']
+
+    def validate(self, attrs):
+        email = attrs.get('email', '')
+        username = attrs.get('username', '')
+
+        if not username.isalnum():
+            raise serializers.ValidationError(
+                'The username should only contain alphanumeric characters')
+        return attrs
+
+    def create(self, validated_data):
+        return User.objects.create_user(**validated_data)
+
+- views.py
+from django.shortcuts import render
+from rest_framework import generics, status
+from .serializer import RegisterSerializer
+from rest_framework.response import Response
+
+
+class RegisterView(generics.GenericAPIView):
+
+    serializer_class = RegisterSerializer
+
+    def post(self, request):
+        user = request.data
+        serializer = self.serializer_class(data=user)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        user_data = serializer.data
+
+        return Response(user_data, status=status.HTTP_201_CREATED)
+
+
+- urls.py
+from django.urls import path
+from .views import RegisterView
+
+urlpatterns = [
+    path('register/', RegisterView.as_view(), name='register')
+
+]
+
+- main urls.py
+from django.contrib import admin
+from django.urls import path, include
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    path('auth/', include('authentication.urls')),
+]
+
+
+- setting.py
+# Postman: non_field_errors -> error. 
+REST_FRAMEWORK = {
+    'NON_FIELD_ERRORS_KEY': 'error'
+}
+
+"non_field_errors": [
+    "The username should only contain alphanumeric characters"
+]
+
+"errors": [
+    "The username should only contain alphanumeric characters"
+]
+
+Video 4. Sending account activation Email.
+https://www.youtube.com/watch?v=BXg-b20Xusw&t=0s
+https://django-rest-framework-simplejwt.readthedocs.io/en/latest/getting_started.html
+
+- pip install djangorestframework-simplejwt python-dotenv
+
+- setting.py
+import os
+from dotenv import load_dotenv
+load_dotenv()
+...
+
+REST_FRAMEWORK = {
+    'NON_FIELD_ERRORS_KEY': 'error',
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    )
+    
+}
+...
+EMAIL_USE_TLS = True
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
+
+
+
+- .env
+EMAIL_HOST_USER=xxxx@gmail.com
+EMAIL_HOST_PASSWORD=xxxxxx # app password
+
+
+- views.py
+from rest_framework_simplejwt.tokens import RefreshToken
+from .models import User
+
+class RegisterView(generics.GenericAPIView):
+
+    def post(self, request):
+        ...
+        user = User.objects.get(email=user_data['email'])
+        token = RefreshToken.for_user(user).access_token
+        ...
+
+class VerifyEmail(generics.GenericAPIView):
+    def get(self):
+        pass
+
+
+- urls.py
+from .views import RegisterView, VerifyEmail
+
+urlpatterns = [
+    ...
+    path('email-verify/', VerifyEmail.as_view(), name='email-verify'),
+]
+
+- utils.py
+from django.core.mail import EmailMessage
+
+
+class Util:
+    @staticmethod # for ClassName.MethodName() or object.MethodName()
+    def send_email(data):
+
+        email = EmailMessage(
+            subject=data['email_subject'], body=data['email_body'], to=[data['to_email']])
+        email.send()
+
+- views.py
+...
+from .utils import Util
+from django.contrib.sites.shortcuts import get_current_site
+from django.urls import reverse
+
+class RegisterView(generics.GenericAPIView):
+
+    serializer_class = RegisterSerializer
+
+    def post(self, request):
+        ...
+        current_site = get_current_site(request).domain
+        relative_link = reverse('email-verify')
+
+        abs_url = 'http://' + current_site + \
+            relative_link + '?token=' + str(token)
+        email_body = 'Hi ' + user.username + \
+            'User link below to verify your email \n' + abs_url
+        data = {'email_body': email_body, 'to_email': user.email,
+                'email_subject': 'Verify your email'}
+
+        Util.send_email(data)
+        ...
+
+- Postman
+POST http://127.0.0.1:8000/auth/register/
+{
+    "email": 
+        "test@gmail.com"
+    ,
+    "username": 
+        "programmer"
+    ,
+    "password": 
+        "test123"
+}
+
+response
+{
+    "email": "test@gmail.com",
+    "username": "programmer"
+}
+
+- Email
+Hi programmerUser link below to verify your email
+http://127.0.0.1:8000/auth/email-verify/?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNjI3MDA5MzQ5LCJqdGkiOiI1Njk0NjAyMDJmNTA0MjNlYjgzMzJmNjY5MDkzNGE1ZCIsInVzZXJfaWQiOjEwfQ.Vm1ntl27PNwFsTs2GKszjSvBKLPB0lja8dmzGulkHTE
+
+
+Video 5. User Account Activation.
+https://www.youtube.com/watch?v=cdg48zsjZAE
+
+- view.py
+...
+import jwt
+from django.conf import settings
+
+class VerifyEmail(generics.GenericAPIView):
+    def get(self, request):
+        token = request.GET.get('token')
+        try:
+            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"]) # need SECRET_KEY to decode, if no algorithms=["HS256"] token invalid error
+            user = User.objects.get(id=payload['user_id'])
+            if not user.is_verified:        
+                user.is_verified = True
+                user.save()
+
+            return Response({'email': 'Successfully activated'}, status=status.HTTP_200_OK)
+
+
+        except jwt.ExpiredSignatureError as identifier:
+            return Response({'error': 'Activation expired'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        except jwt.exceptions.DecodeError as identifier:
+            return Response({'error': 'Invalid token'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+Video 6. API Documentation using Swagger and REDOC.
+https://www.youtube.com/watch?v=XOB-aHKu6e4&t=0s
+
+- python manage.py shell
+>>> from authentication.models import User
+>>> User.objects.all().delete()
+>>> quit()
+
+https://drf-yasg.readthedocs.io/en/stable/readme.html
+- pip install -U drf-yasg
+
+- settings.py
+INSTALLED_APPS = [
+    ...
+    'drf-yasg'
+]
+
+
+- main urls.py
+...
+from rest_framework import permissions
+from drf_yasg.views import get_schema_view
+from drf_yasg import openapi
+
+schema_view = get_schema_view(
+    openapi.Info(
+        title="Income Expenses API",
+        default_version='v1',
+        description="Test description",
+        terms_of_service="https://www.ourapp.com/policies/terms/",
+        contact=openapi.Contact(email="contact@expenses.local"),
+        license=openapi.License(name="Test License"),
+    ),
+    public=True,
+    permission_classes=(permissions.AllowAny,),
+)
+
+urlpatterns = [
+    ...
+    path('', schema_view.with_ui('swagger',
+         cache_timeout=0), name='schema-swagger-ui'),
+    path('redoc/', schema_view.with_ui('redoc',
+         cache_timeout=0), name='schema-redoc'),
+]
+
+- http://127.0.0.1:8000/
+# Issue: GET email-verify has no parameter to enter a token to verify email, how to build? Follow below
+
+- serializer.py
+...
+class EmailVerificationSerializer(serializers.ModelSerializer):
+    token = serializers.CharField(max_length=555)
+
+    class Meta:
+        model = User
+        fields = ['token']
+
+- views.py
+...
+from rest_framework import views
+import jwt
+from django.conf import settings
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
+
+class VerifyEmail(views.APIView): # generics.GenericAPIView replaced by view.APIView
+    serializer_class = EmailVerificationSerializer
+
+    token_param_config = openapi.Parameter(
+        'token', in_=openapi.IN_QUERY, description='Description', type=openapi.TYPE_STRING)
+
+    @swagger_auto_schema(manual_parameters=[token_param_config])
+    def get(self, request):
+        token = request.GET.get('token')
+        try:
+            payload = jwt.decode(
+                token, settings.SECRET_KEY, algorithms=["HS256"]) # algorithms=["HS256"] needed, if not invalid token error
+            user = User.objects.get(id=payload['user_id'])
+            if not user.is_verified:
+                user.is_verified = True
+                user.save()
+            return Response({'email': 'Successfully activated'}, status=status.HTTP_200_OK)
+        except jwt.ExpiredSignatureError as identifier:
+            return Response({'error': 'Activation Expired'}, status=status.HTTP_400_BAD_REQUEST)
+        except jwt.exceptions.DecodeError as identifier:
+            return Response({'error': 'Invalid token'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+- python manage.py shell
+>>> from authentication.models import User
+>>> User.objects.get(email='test@gmail.com').is_verified
+True
+>>> quit()
+
+
+Video 7. User Login/ Get JWT and Refresh Token.
+https://www.youtube.com/watch?v=M61KIo4DAqs&t=0s
+
+- views.py
+class LoginAPIView(generics.GenericAPIView):
+    serializer_class = LoginSerializer
+
+    def post(self, request):
+        user = request.data
+        serializer = self.serializer_class(data=user)
+        serializer.is_valid(raise_exception=True)
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+- models.py
+...
+from rest_framework_simplejwt.tokens import RefreshToken
+
+class User(AbstractBaseUser, PermissionsMixin):
+    ...
+    def tokens(self):
+        refresh = RefreshToken.for_user(self)
+        return {
+            'refresh': str(refresh),
+            'access': str(refresh.access_token)
+        }
+
+
+
+- serializer.py
+...
+from django.contrib import auth
+from rest_framework.exceptions import AuthenticationFailed
+
+class LoginSerializer(serializers.ModelSerializer):
+    email = serializers.EmailField(
+        max_length=255, min_length=6)  # email* (* mandatory) on swagger
+    password = serializers.CharField(
+        max_length=68, min_length=6, write_only=True)  # password* on swagger, without write_only=True KeyError: "Got KeyError when attempting to get a value for field `password`
+    username = serializers.CharField(
+        max_length=255, min_length=6, read_only=True)  # username on swagger
+    tokens = serializers.CharField(
+        max_length=68, min_length=6, read_only=True)  # tokens on swagger
+
+    class Meta:
+        model = User
+        fields = ['email', 'password', 'username', 'tokens']
+
+    def validate(self, attrs):
+        email = attrs.get('email', '')
+        password = attrs.get('password', '')
+
+        user = auth.authenticate(email=email, password=password)
+
+        # for debug
+        # import pdb
+        # pdb.set_trace()
+
+        if not user:
+            raise AuthenticationFailed('Invalid credentaials, try again')
+        if not user.is_active:
+            raise AuthenticationFailed('Account disabled, contact admin')
+        if not user.is_verified:
+            raise AuthenticationFailed('Email is not verified')
+
+        return {
+            'email': user.email,
+            'username': user.username,
+            'tokens': user.tokens
+
+        }
+
+- how to debug, execution stops at pdb.set_trace()
+    import pdb
+    pdb.set_trace()
+
+Video 8. Create, Read, Update, Delete Expenses
+https://www.youtube.com/watch?v=B3HGwFlBvi8
+
+- CRUD
+
+- python manage.py startapp expenses
+
+- steps: settings -> models -> migration -> view:list -> serializer -> view:detail -> permissions -> view:detail -> url -> main url -> Swagger: Basic Auth to Token -> settings: SWAGGER_SETTINGS -> Type Bearer token
+
+- settings.py
+INSTALLED_APPS = [
+    ...
+    'expenses',
+]
+
+- models.py
+from django.db import models
+from authentication.models import User
+
+class Expense(models.Model):
+
+    CATEGORY_OPTIONS = [
+        ('ONLINE_SERVICES', 'ONLINE_SERVICES'),
+        ('TRAVEL', 'TRAVEL'),
+        ('FOOD', 'FOOD'),
+        ('RENT', 'RENT'),
+        ('OTHERS', 'OTHERS'),
+    ]
+
+    category = models.CharField(choices=CATEGORY_OPTIONS, max_length=255)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    description = models.TextField()
+    owner = models.ForeignKey(to=User, on_delete=models.CASCADE)
+    date = models.DateField(null=False, blank=False)
+
+    class Meta:
+        ordering: ['-date']
+
+    def __str__(self) -> str:
+        return str(self.owner) + 's expense' 
+
+
+- python manage.py makemigrations & python manage.py migrate
+
+- views.py
+from django.shortcuts import render
+from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
+from .serializers import ExpensesSerializer
+from .models import Expense
+from rest_framework import permissions
+
+class ExpenseListAPIView(ListCreateAPIView):
+    serializer_class = ExpensesSerializer
+    queryset = Expense.objects.all()
+    permission_classes = (permissions.IsAuthenticated,) # if no (,)comma, TypeError: 'BasePermissionMetaclass' object is not iterable 
+
+    def perform_create(self, serializer):
+        return serializer.save(owner=self.request.user)
+
+    def get_queryset(self):
+        return self.queryset.filter(owner=self.request.user)
+
+- serializer.py
+from rest_framework import serializers
+from .models import Expense
+
+class ExpensesSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Expense
+        fields = ['id', 'date', 'description', 'amount', 'category']
+
+- views.py
+...
+from .permissions import IsOwner
+...
+class ExpenseDetailAPIView(RetrieveUpdateDestroyAPIView):
+    serializer_class = ExpensesSerializer
+    queryset = Expense.objects.all()
+    permission_classes = (permissions.IsAuthenticated, IsOwner,)
+    lookup_field = 'id' # django uses query for expense details, use lookup_field not lookup_fields
+
+    def get_queryset(self):
+        return self.queryset.filter(owner=self.request.user)
+
+- permissions.py
+from rest_framework import permissions
+
+class IsOwner(permissions.BasePermission):
+
+    def has_object_permission(self, request, view, obj):
+        return obj.owner == request.user
+
+- urls.py
+from django.urls import path
+
+from . import views
+
+urlpatterns = [
+    path('', views.ExpenseListAPIView.as_view(), name='expenses'),
+    path('<int:id>', views.ExpenseDetailAPIView.as_view(), name='expense'),
+]
+
+
+- main urls.py
+urlpatterns = [
+    ...
+    path('expenses/', include('expenses.urls')),
+    ...
+]
+
+- Swagger: http://127.0.0.1:8000/ need to change base authentication to token based 
+# settings.py
+
+SWAGGER_SETTINGS = {
+    'SECURITY_DEFINITIONS': {
+        'Bearer': {
+            'type': 'apiKey',
+            'name': 'Authorization',
+            'in': 'header'
+        }
+    }
+}
+# Retreive an access token from http://127.0.0.1:8000/auth/login/
+# Click Authorize button on Swagger
+# Type 'Bearer the access token'
+# GET from http://127.0.0.1:8000/expenses/
+# POST/PUT/DELETE
+
+9. Pagination for REST API.
+https://www.youtube.com/watch?v=XOB-aHKu6e4
+
+- settings.py
+REST_FRAMEWORK = {
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 5,
+    ...
+
+}
+
+- Swagger GET http://127.0.0.1:8000/expenses/?page=2
+{
+  "count": 13,
+  "next": "http://127.0.0.1:8000/expenses/?page=3",
+  "previous": "http://127.0.0.1:8000/expenses/",
+  "results": [
+    {
+      "date": "2021-07-23",
+      "description": "string",
+      "amount": "30000.00",
+      "category": "ONLINE_SERVICES"
+    },
+    ...
+}
+
+Video 10. Create, Read, Update, Delete Income
+https://www.youtube.com/watch?v=XOB-aHKu6e4
+
+- steps: copy expenses folder -> rename expenses to income (views -> serializers -> models -> apps -> urls) -> settings -> main urls
+
+- Swagger patch (one field update) vs put (multiple files update)
+
+- models.py
+...
+class Income(models.Model):
+
+    SOURCE_OPTIONS = [
+        ('SALARY', 'SALARY'),
+        ('BUSINESS', 'BUSINESS'),
+        ('SIDE-HUSTLES', 'SIDE-HUSTLES'),
+        ('OTHERS', 'OTHERS'),
+    ]
+
+    source = models.CharField(choices=SOURCE_OPTIONS, max_length=255)
+    ...
+
+- apps.py
+class ExpensesConfig(AppConfig):
+    ...
+    name = 'income'
+
+
+Video 11. API Renderers and Consistent Responses. 
+https://youtu.be/-InaSDmAlOU
+
+- custom renderer to response 
+# without custom renderer
+{
+  "email": [
+    "user with this email already exists."
+  ],
+  "username": [
+    "user with this username already exists."
+  ]
+}
+
+# with custom renderer
+{
+  "errors": {
+    "email": [
+      "user with this email already exists."
+    ],
+    "username": [
+      "user with this username already exists."
+    ]
+  }
+}
+
+- renderers.py
+import json
+from rest_framework import renderers
+
+
+class UserRenderer(renderers.JSONRenderer):
+    charset = 'utf-8'  # must be added this for custom renderer
+
+    def render(self, data, accepted_media_type, renderer_context):
+        response = ''
+
+        # import pdb
+        # pdb.set_trace() # to see data
+
+        if 'ErrorDetail' in str(data):
+            response = json.dumps({'errors': data})
+        else:
+            response = json.dumps({'data': data})
+        return response
+
+
+- views.py
+...
+from .renderers import UserRenderer
+...
+class RegisterView(generics.GenericAPIView):
+    ...
+    renderer_classes = (UserRenderer, )
+    ...
+
+
+Video 12. Rest Framework Simple JWT Exploration. 
+https://youtu.be/ESYWl7Lc9Sc
+https://django-rest-framework-simplejwt.readthedocs.io/en/latest/settings.html#refresh-token-lifetime
+
+- settings.py
+...
+from datetime import timedelta
+...
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=10),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+}
+
+Video 13. Refresh Token and Access Tokens in. 
+https://youtu.be/x_tLxV57cEA
+https://django-rest-framework-simplejwt.readthedocs.io/en/latest/getting_started.html
+
+
+- urls.py
+...
+from rest_framework_simplejwt.views import (TokenRefreshView,)
+
+urlpatterns = [
+    ...
+    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+
+]
+
+- Swagger
+# Acquire an access token from http://127.0.0.1:8000/auth/login/
+# Enter a fresh token on http://127.0.0.1:8000/auth/api/token/refresh/ -> Generate a new token
+
+Video 14. Reset a user's password by Email. 
+https://youtu.be/2kKwPk5qPUs
+
+- steps: views -> serializer
+
+- views.py
+...
+from django.contrib.auth.tokens import PasswordResetTokenGenerator
+from django.utils.encoding import smart_str, force_str, smart_bytes, DjangoUnicodeDecodeError
+from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
+from django.contrib.sites.shortcuts import get_current_site
+...
+class RequestPasswordResetEmail(generics.GenericAPIView):
+    serializer_class = RequestPasswordResetEmailSerializer
+
+    def post(self, request):
+        data = {'request': request, 'data': request.data}
+        serializer = self.serializer_class(data=request.data)
+
+        email = request.data['email']
+
+        if User.objects.filter(email=email).exists():
+            user = User.objects.get(email=email)
+            uidb64 = urlsafe_base64_encode(smart_bytes(user.id))
+            token = PasswordResetTokenGenerator().make_token(user)
+            current_site = get_current_site(
+                request=request).domain
+            relative_link = reverse(
+                'password-reset-confirm', kwargs={'uidb64': uidb64, 'token': token})
+            abs_url = 'http://' + current_site + relative_link
+            email_body = 'Hello, \nUse link below to reset your password.\n' + abs_url
+            data = {'email_body': email_body, 'to_email': user.email,
+                    'email_subject': 'Reset your password'}
+            Util.send_email(data)
+
+        return Response({'success': 'We have sent you a link to reset your password'}, status=status.HTTP_200_OK)
+
+
+- serializer.py
+...
+class RequestPasswordResetEmailSerializer(serializers.ModelSerializer):
+    email = serializers.EmailField(min_length=5)
+
+    class Meta:
+        model = User
+        fields = ['email']
+
+- urls.py
+urlpatterns = [
+    ...
+    path('request-reset-email/', RequestPasswordResetEmailAPIView.as_view(), name='request-reset-email'),
+    path('password-reset/<uidb64>/<token>/',PasswordTokenCheckAPIView.as_view(), name='password-reset-confirm')
+
+]
+
+- views.py
+class PasswordTokenCheckAPIView(generics.GenericAPIView):
+    def get(self, request, uidb64, token):
+        try:
+            id = smart_str(urlsafe_base64_decode(uidb64))
+            user = User.objects.get(id=id)
+
+            if not PasswordResetTokenGenerator().check_token(user, token):  # if token has been used already
+                return Response({'error': 'Token is not valid, please request a new one'}, status=status.HTTP_401_UNAUTHORIZED)
+
+            return Response({'success': True, 'message': 'Crendentials Valid', 'uidb64': uidb64, 'token': token}, status=status.HTTP_200_OK)
+
+        except DjangoUnicodeDecodeError as identifier:
+            return Response({'error': 'Token is not valid, please request a new one'}, status=status.HTTP_401_UNAUTHORIZED)
+
+class SetNewPasswordAPIView(generics.GenericAPIView):
+    serializer_class = SetNewPasswordSerializer
+
+    def patch(self, request):
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        return Response({'success': True, 'message': 'Password reset success'}, status=status.HTTP_200_OK)
+
+- serializer.py
+...
+from django.contrib.auth.tokens import PasswordResetTokenGenerator
+from django.utils.encoding import smart_str, force_str, smart_bytes, DjangoUnicodeDecodeError
+from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
+...
+
+class SetNewPasswordSerializer(serializers.Serializer):
+    password = serializers.CharField(min_length=6, max_length=68, write_only=True)
+    token = serializers.CharField(min_length=1, max_length=68, write_only=True)
+    uidb64 = serializers.CharField(min_length=1, max_length=68, write_only=True)
+
+    class Meta:
+        fields = ['password', 'token', 'uidb64']
+
+    def validate(self, attrs):
+        try:
+            password = attrs.get('password')
+            token = attrs.get('token')
+            uidb64 = attrs.get('uidb64')
+
+            id = force_str(urlsafe_base64_decode(uidb64))
+            user = User.objects.get(id=id)
+
+            if not PasswordResetTokenGenerator().check_token(user, token):
+                raise AuthenticationFailed('The reset link is invalid', 401)
+
+            user.set_password(password)
+            user.save()
+
+            return (user)
+        except Exception as e:
+            raise AuthenticationFailed('The reset link is invalid', 401)
+
+        return super().validate(attrs)
+
+- Swagger
+# POST http://127.0.0.1:8000/auth/request-reset-email/
+    Send: 
+    {
+    "email": "xxx@gmail.com"
+    }
+        
+    Response:
+    {
+    "success": "We have sent you a link to reset your password"
+    }
+
+# Email
+    Use link below to reset your password
+    http://127.0.0.1:8000/auth/password-reset/MTY/aq977a-b80cc5b0b4edebc38b0b2db75b6248f6/
+
+# GET http://127.0.0.1:8000/auth/password-reset/MTY/aq977a-b80cc5b0b4edebc38b0b2db75b6248f6/
+
+    {
+    "success": true,
+    "message": "Crendentials Valid",
+    "uidb64": "MTY",
+    "token": "aq977a-b80cc5b0b4edebc38b0b2db75b6248f6"
+    }
+
+# PATCH http://127.0.0.1:8000/auth/password-reset-complete
+    Send:
+    {
+    "password": "newpassword",
+    "token": "aq977a-b80cc5b0b4edebc38b0b2db75b6248f6",
+    "uidb64": "MTY"
+    }
+    
+    Response:
+    {
+    "success": true,
+    "message": "Password reset success"
+    }
+
+15. Unit testing the API. 
+https://youtu.be/17KdirMbmHY
+
+- pip install faker
+
+- remove test.py
+
+- create a folder tests and add __init__.py in the folder
+
+- test_setup.py
+from rest_framework.test import APITestCase
+from django.urls import reverse
+from faker import Faker
+
+class TestSetup(APITestCase):
+
+    def setUp(self) -> None:
+        self.register_url = reverse('register')
+        self.login_url = reverse('login')
+
+        self.fake = Faker()
+
+        self.user_data = {
+            'email': self.fake.email(),
+            'username': self.fake.email().split('@')[0],
+            'password': 'self.fake.email()'
+        }
+        return super().setUp()
+
+    def tearDown(self) -> None:
+        return super().tearDown()
+
+- test_views.py
+from .test_setup import TestSetup
+
+class TestView(TestSetup):
+    def test_user_cannot_register_with_no_data(self):
+        res = self.client.post(self.register_url)
+        # import pdb
+        # pdb.set_trace()
+        self.assertEqual(res.status_code, 400)
+
+    def test_user_can_register_correctly(self):
+        res = self.client.post(
+            self.register_url, self.user_data, format='json')
+        # import pdb
+        # pdb.set_trace()
+        self.assertEqual(res.data['email'], self.user_data['email'])
+        self.assertEqual(res.data['username'], self.user_data['username'])
+        self.assertEqual(res.status_code, 201)
+
+    def test_user_cannot_login_with_unverified_email(self):
+        res = self.client.post(
+            self.register_url, self.user_data, format='json')
+
+        res = self.client.post(self.login_url, self.user_data, format='json')
+        self.assertEqual(res.status_code, 401)
+
+    def test_user_can_login_after_verification(self):
+        res = self.client.post(
+            self.register_url, self.user_data, format='json')
+        email = res.data['email']
+        user = User.objects.get(email=email)
+        user.is_verified = True
+        user.save()
+
+        res = self.client.post(self.login_url, self.user_data, format='json')
+        self.assertEqual(res.status_code, 200)
+
+- python manage.py test
+....
+----------------------------------------------------------------------
+Ran 4 tests in 1.215s
+
+OK
+
+
+Video 16 CI/CD Continous Integration with CircleCI. 
+https://youtu.be/jzir3eYCCw4
