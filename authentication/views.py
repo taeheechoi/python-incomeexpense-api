@@ -44,6 +44,7 @@ class RegisterView(generics.GenericAPIView):
                 'email_subject': 'Verify your email'}
 
         Util.send_email(data)
+        # return Response(user_data, status=status.HTTP_200_OK)
         return Response(user_data, status=status.HTTP_201_CREATED)
 
 
