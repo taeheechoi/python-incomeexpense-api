@@ -992,7 +992,8 @@ https://youtu.be/jzir3eYCCw4
 - git push -u origin main
 
 - sign into https://circleci.com/
-- projects 
+- on circleci 
+    -> projects 
     -> python-incomeexpense-api 
     -> set up project 
     -> Write your own using our starter config.yml template
@@ -1016,6 +1017,57 @@ https://youtu.be/jzir3eYCCw4
                     pkg-manager: pip 
                 - run:
                     name: Run tests
-                    command: ./manage.py test
+                    command: python manage.py test
+
+- on github
+    -> pull request
+    -> merge
+    -> merge pull request
+    -> confirm merge
+
+- git pull
+   8fb4d08..88c8d25  main       -> origin/main
+Updating 8fb4d08..88c8d25
+Fast-forward
+ .circleci/config.yml | 41 +++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 41 insertions(+)
+ create mode 100644 .circleci/config.yml
+
+- how to test this
+    -> git checkout -b ch-lint-space
+
+- authentication views.py
+class RegisterView(generics.GenericAPIView):
+    ...
+        return Response(user_data, status=status.HTTP_200_OK)
+        # return Response(user_data, status=status.HTTP_201_CREATED)
+
+- git add .
+- git commit -m "changed status 201 - > 200"
+- git push --set-upstream origin ch-lint-space
+
+- on github
+    -> Pull requests
+    -> New pull request
+    -> ch-lint-space
+    -> Create pull request
+    -> All checks have failed -> Details
+
+- authentication views.py
+class RegisterView(generics.GenericAPIView):
+    ...
+        # return Response(user_data, status=status.HTTP_200_OK)
+        return Response(user_data, status=status.HTTP_201_CREATED)
+
+- git add .
+- git commit --amend --no-edit
+- git push -f
+
+- on github
+    -> merge
+    -> merge pull request
+    -> confirm merge
+
+
 
  
