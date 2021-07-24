@@ -1112,14 +1112,14 @@ django_heroku.settings(locals())
 release: python manage.py makemigrations --no-input
 release: python manage.py mirgrate --no-input
 
-web: gunicorn incomeexpenseapi.wsgi
+web: gunicorn incomeexpensetestapi.wsgi
 
 - heroku login
 
 - heroku create expenseincomeapi
-Creating ⬢ expenseincomeapi... done
+Creating ⬢ expenseincometestapi... done
 
 - settings.py
 # change SECRET_KEY = os.getenv('DJANGO_SECRET_KEY') heroku can use it
 
-- git push heroku master
+- git push heroku HEAD:master  
