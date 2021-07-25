@@ -167,14 +167,13 @@ Video 4. Sending account activation Email.
 https://www.youtube.com/watch?v=BXg-b20Xusw&t=0s
 https://django-rest-framework-simplejwt.readthedocs.io/en/latest/getting_started.html
 
-- pip install djangorestframework-simplejwt python-dotenv
+- pip install djangorestframework-simplejwt
 
 - setting.py
 import os
-from dotenv import load_dotenv
-load_dotenv()
 ...
-
+SECRET_KEY = os.environ.get('SECRET_KEY')
+...
 REST_FRAMEWORK = {
     'NON_FIELD_ERRORS_KEY': 'error',
     'DEFAULT_AUTHENTICATION_CLASSES': (
@@ -186,14 +185,15 @@ REST_FRAMEWORK = {
 EMAIL_USE_TLS = True
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
-EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
-EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
 
 
 
 - .env
-EMAIL_HOST_USER=xxxx@gmail.com
-EMAIL_HOST_PASSWORD=xxxxxx # app password
+export EMAIL_HOST_USER=xxxx@gmail.com
+export EMAIL_HOST_PASSWORD=xxxxxx # app password
+export SECRET_KEY='django-insecure-a$lukw25y%q@9w+lrc6t%mc@%u_v5cd0(!&0ydhc^x%9cxc(oj'
 
 
 - views.py
@@ -992,7 +992,8 @@ https://youtu.be/jzir3eYCCw4
 - git push -u origin main
 
 - sign into https://circleci.com/
-- projects 
+- on circleci 
+    -> projects 
     -> python-incomeexpense-api 
     -> set up project 
     -> Write your own using our starter config.yml template
@@ -1016,6 +1017,109 @@ https://youtu.be/jzir3eYCCw4
                     pkg-manager: pip 
                 - run:
                     name: Run tests
-                    command: ./manage.py test
+                    command: python manage.py test
 
- 
+- on github
+    -> pull request
+    -> merge
+    -> merge pull request
+    -> confirm merge
+
+- git pull
+   8fb4d08..88c8d25  main       -> origin/main
+Updating 8fb4d08..88c8d25
+Fast-forward
+ .circleci/config.yml | 41 +++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 41 insertions(+)
+ create mode 100644 .circleci/config.yml
+
+- how to test this
+    -> git checkout -b ch-lint-space
+
+- authentication views.py
+class RegisterView(generics.GenericAPIView):
+    ...
+        return Response(user_data, status=status.HTTP_200_OK)
+        # return Response(user_data, status=status.HTTP_201_CREATED)
+
+- git add .
+- git commit -m "changed status 201 - > 200"
+- git push --set-upstream origin ch-lint-space
+
+- on github
+    -> Pull requests
+    -> New pull request
+    -> ch-lint-space
+    -> Create pull request
+    -> All checks have failed -> Details
+
+- authentication views.py
+class RegisterView(generics.GenericAPIView):
+    ...
+        # return Response(user_data, status=status.HTTP_200_OK)
+        return Response(user_data, status=status.HTTP_201_CREATED)
+
+- git add .
+- git commit --amend --no-edit
+- git push -f
+
+- on github
+    -> merge
+    -> merge pull request
+    -> confirm merge
+
+Video 17. Configuring CORS Policy. 
+https://youtu.be/q3HQyAObaac
+
+- git checkout -b ch-prepare-deploy
+- git pull --rebase origin master
+- pip install django-cors-headers
+
+- settings.
+...
+INSTALLED_APPS = [
+    ...
+    'corsheaders',
+]
+...
+MIDDLEWARE = [
+    ...,
+    'corsheaders.middleware.CorsMiddleware',
+    ...
+]
+
+CORS_ALLOW_ALL_ORIGINS=True
+
+
+18. Deploying To Heroku. 
+https://youtu.be/r1zUSJwyd8U
+
+- pip install django-heroku 
+
+- settings.py
+...
+import django_heroku
+...
+django_heroku.settings(locals())
+
+- pip install gunicorn
+
+- pip freeze > requirements.txt
+
+- Create a file 'Procfile' on root
+
+- Procfile
+release: python manage.py makemigrations --no-input
+release: python manage.py mirgrate --no-input
+
+web: gunicorn incomeexpensetestapi.wsgi
+
+- heroku login
+
+- heroku create expenseincomeapi
+Creating ⬢ expenseincometestapi... done
+
+- settings.py
+# change SECRET_KEY = os.getenv('DJANGO_SECRET_KEY') heroku can use it
+
+- git push heroku master  
