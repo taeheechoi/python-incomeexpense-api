@@ -1,4 +1,4 @@
-
+https://medium.com/agatha-codes/9-straightforward-steps-for-deploying-your-django-app-with-heroku-82b952652fb4
 
 https://it-eldorado.tistory.com/70
 

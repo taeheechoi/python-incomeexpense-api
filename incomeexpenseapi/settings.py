@@ -10,10 +10,13 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.2/ref/settings/
 """
 
+import django_heroku
+from datetime import timedelta
 from pathlib import Path
 import os
-from datetime import timedelta
-import django_heroku
+from dotenv import load_dotenv, find_dotenv
+load_dotenv(find_dotenv())
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -47,6 +50,7 @@ INSTALLED_APPS = [
     'expenses',
     'income',
     'corsheaders',
+    'userstats',
 ]
 
 SWAGGER_SETTINGS = {
