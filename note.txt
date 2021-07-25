@@ -65,7 +65,6 @@ class User(AbstractBaseUser, PermissionsMixin):
         return ''
 
 - settings.py
-
 AUTH_USER_MODEL='authentication.User' # app_name.model_name
 
 INSTALLED_APPS = [
@@ -171,6 +170,9 @@ https://django-rest-framework-simplejwt.readthedocs.io/en/latest/getting_started
 
 - setting.py
 import os
+...
+from dotenv import load_dotenv, find_dotenv
+load_dotenv(find_dotenv())
 ...
 SECRET_KEY = os.environ.get('SECRET_KEY')
 ...
@@ -1093,6 +1095,7 @@ CORS_ALLOW_ALL_ORIGINS=True
 
 18. Deploying To Heroku. 
 https://youtu.be/r1zUSJwyd8U
+https://medium.com/agatha-codes/9-straightforward-steps-for-deploying-your-django-app-with-heroku-82b952652fb4
 
 - pip install django-heroku 
 
@@ -1119,9 +1122,88 @@ web: gunicorn incomeexpensetestapi.wsgi
 - heroku create expenseincomeapi
 Creating ⬢ expenseincometestapi... done
 
-- settings.py
-# change SECRET_KEY = os.getenv('DJANGO_SECRET_KEY') heroku can use it
+- heroku config:set DISABLE_COLLECTSTATIC=1
+
+- heroku config:set SECRET_KEY='django-insecure-a$lukw25y%q@9w+lrc6t%mc@%u_v5cd0(!&0ydhc^x%9cxc(oj'
 
 - git push heroku master
 
-- heroku expenseincomeapi:destroy
+- heroku open
+- https://expenseincomeapi.herokuapp.com/
+
+- heroku apps:destroy expenseincomeapi
+    -> --confirm
+
+
+19. Creating Chart Data endpoints. 
+https://youtu.be/x2tDVfl4dg4
+
+- python manage.py  startapp userstats 
+
+- settings.py
+INSTALLED_APPS = [
+    ...
+    'userstats',
+]
+
+- views.py
+from django.shortcuts import render
+from rest_framework.views import APIView
+import datetime
+from expenses.models import Expense
+from rest_framework import status, response
+# Create your views here.
+
+
+class ExpenseSummaryStats(APIView):
+    def get_category(self, expense):
+        return expense.category
+
+    def get_amount_for_category(self, expense_list, category):
+        expenses = expense_list.filter(category=category)
+        amount = 0
+        for expense in expenses:
+            amount += expense.amount
+        return {'amount': str(amount)}
+
+    def get(self, request):
+        today_date = datetime.date.today()
+        ayear_ago = today_date-datetime.timedelta(days=365)
+        expenses = Expense.objects.filter(
+            owner=request.user, date__gte=ayear_ago, date__lte=today_date)
+        final = {}
+        categories = list(set(map(self.get_category, expenses)))
+
+        for expense in expenses:
+            for category in categories:
+                final[category] = self.get_amount_for_category(
+                    expenses, category)
+
+        return response.Response({'category_data': final}, status=status.HTTP_200_OK)
+
+- urls.py
+from .views import ExpenseSummaryStats
+from django.urls import path
+
+urlpatterns = [
+    path('expense_category_data', ExpenseSummaryStats.as_view(),
+         name='expense_category_data')
+]
+
+- main urls.py
+urlpatterns = [
+    ...
+    path('userstats/', include('userstats.urls')),
+    ...
+]
+
+- on Swagger
+    -> Authorize: Bearer token
+    -> Add new expenses
+    -> http://127.0.0.1:8000/userstats/expense_category_data
+
+
+20. Creating Last year`s Income. statistics endpoints. 
+https://youtu.be/hnrMmkJHdDQ
+
+- Same as expenses
