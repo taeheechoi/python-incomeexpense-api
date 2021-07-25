@@ -167,14 +167,13 @@ Video 4. Sending account activation Email.
 https://www.youtube.com/watch?v=BXg-b20Xusw&t=0s
 https://django-rest-framework-simplejwt.readthedocs.io/en/latest/getting_started.html
 
-- pip install djangorestframework-simplejwt python-dotenv
+- pip install djangorestframework-simplejwt
 
 - setting.py
 import os
-from dotenv import load_dotenv
-load_dotenv()
 ...
-
+SECRET_KEY = os.environ.get('SECRET_KEY')
+...
 REST_FRAMEWORK = {
     'NON_FIELD_ERRORS_KEY': 'error',
     'DEFAULT_AUTHENTICATION_CLASSES': (
@@ -186,14 +185,15 @@ REST_FRAMEWORK = {
 EMAIL_USE_TLS = True
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
-EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
-EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
 
 
 
 - .env
-EMAIL_HOST_USER=xxxx@gmail.com
-EMAIL_HOST_PASSWORD=xxxxxx # app password
+export EMAIL_HOST_USER=xxxx@gmail.com
+export EMAIL_HOST_PASSWORD=xxxxxx # app password
+export SECRET_KEY='django-insecure-a$lukw25y%q@9w+lrc6t%mc@%u_v5cd0(!&0ydhc^x%9cxc(oj'
 
 
 - views.py
