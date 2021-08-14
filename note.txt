@@ -204,6 +204,7 @@ class RegisterView(generics.GenericAPIView):
 
     def post(self, request):
         ...
+        user_data = serializer.data
         user = User.objects.get(email=user_data['email'])
         token = RefreshToken.for_user(user).access_token
         ...
