@@ -1028,4 +1028,34 @@ https://youtu.be/jzir3eYCCw4
                     name: Run tests
                     command: ./manage.py test
 
+ Video 17 DEPLOYING DJANGO APPLICATIONS TO HEROKU.
+ https://www.youtube.com/watch?v=r1zUSJwyd8U
  
+ - pip install django-heroku
+ 
+ - settings.py
+ ...
+ import django_heroku
+ ...
+django_heroku.settings(locals())
+
+- pip install gunicorn
+
+- pip freeze > requirements.txt
+
+- create Procfile
+release: python manage.py makemigrations --no-input
+release: python manage.py migrate --no-input
+
+web: gunicorn incomeexpenseapi.wsgi
+
+- console: 
+    heroku login
+    heroku create incomeexpenseapi
+    got push heroku master
+   
+- heroku dashboard > settings > Config Vars
+    EMAIL_HOST_USER=
+    EMAIL_HOST_PASSWORD=
+    SECRET_KEY=
+    
