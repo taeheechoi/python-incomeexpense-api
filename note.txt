@@ -1049,13 +1049,18 @@ release: python manage.py migrate --no-input
 
 web: gunicorn incomeexpenseapi.wsgi
 
+- heroku dashboard > settings > Config Vars
+    DISABLE_COLLECTSTATIC=1
+    EMAIL_HOST_USER=xxx
+    EMAIL_HOST_PASSWORD=xxx
+    SECRET_KEY=xxx
+
+Method 1) heroku dashboard > Deploy > Github > search incomeexpenseapi > deploy branch
+
+Method 2)
 - console: 
     heroku login
     heroku create incomeexpenseapi
-    got push heroku master
+    git push heroku master
    
-- heroku dashboard > settings > Config Vars
-    EMAIL_HOST_USER=
-    EMAIL_HOST_PASSWORD=
-    SECRET_KEY=
-    
+
